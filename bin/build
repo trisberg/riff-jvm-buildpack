@@ -81,4 +81,4 @@ cp $jar $launch_dir/function/.
 # Set default start command
 FUNCTION_HANDLER=$(cat "riff.toml" | yj -t | jq -r .handler)
 echo "Setting function handler to $FUNCTION_HANDLER"
-echo "processes = [{ type = \"web\", command = \"java -jar target/java-function-invoker-${invoker_version}-exec.jar --function.uri=file://\$PWD/$jar?handler=${FUNCTION_HANDLER:-functions.Function}\"}]" > "$launch_dir/launch.toml"
+echo "processes = [{ type = \"web\", command = \"java -jar target/java-function-invoker-${invoker_version}-exec.jar --function.uri=file://\$PWD/$jar?handler=${FUNCTION_HANDLER:-functions.Function} --riff.function.invoker.protocol=http\"}]" > "$launch_dir/launch.toml"
