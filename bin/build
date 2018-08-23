@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+env_dir=$1/env
+cache_dir=$2
+launch_dir=$3
+
+# TODO: 
+jdk_version=1.8.0_131
+jdk_url=https://java-buildpack.cloudfoundry.org/openjdk/trusty/x86_64/openjdk-${jdk_version}.tar.gz
+mvn_version=3.5.4
+mvn_url=http://www-us.apache.org/dist/maven/maven-3/${mvn_version}/binaries/apache-maven-${mvn_version}-bin.tar.gz
+invoker_version=0.0.7
+invoker_url=http://repo.spring.io/libs-milestone-local/io/projectriff/java-function-invoker/${invoker_version}/java-function-invoker-${invoker_version}-exec.jar
+
+# Load user-provided build-time environment variables
+if compgen -G "$env_dir/*" > /dev/null; then
+    for var in "$env_dir"/*; do
+        declare "$(basename "$var")=$(<"$var")"
+    done
+fi
+
+# If it doesn't exist locally, create a JDK cache layer with
+# POSIX-style root for launch (bin, lib, etc).
+# This makes java available to subsequent buildpacks as well.
+if [[ -f $cache_dir/java.toml ]]; then
+    cached_jdk_version=$(cat "$cache_dir/java.toml" | yj -t | jq -r .version)
+fi
+if [[ $jdk_version != $cached_jdk_version ]] ; then
+    rm -rf "$cache_dir/java"
+    mkdir "$cache_dir/java"
+    wget -q -O - "$jdk_url" | tar -xzf - -C "$cache_dir/java" --strip-components=1
+    echo "version = \"$jdk_version\"" > "$cache_dir/java.toml"
+fi
+
+# If it doesn't exist remotely, create a JDK launch layer with
+# POSIX-style root for launch (bin, lib, etc).
+if [[ -f $launch_dir/java.toml ]]; then
+    launch_jdk_version=$(cat "$launch_dir/java.toml" | yj -t | jq -r .version)
+fi
+if [[ $jdk_version != $launch_jdk_version ]] ; then
+    mkdir "$launch_dir/java"
+    cp -r "$cache_dir/java"//{bin,lib} "$launch_dir/java/"
+    cp "$cache_dir/java.toml" "$launch_dir/java.toml"
+fi
+
+# If it doesn't exist locally, create a Maven cache layer with
+# POSIX-style root for launch (bin, lib, etc).
+# This makes mvn available to subsequent buildpacks as well.
+if [[ -f $cache_dir/maven.toml ]]; then
+    cached_mvn_version=$(cat "$cache_dir/maven.toml" | yj -t | jq -r .version)
+fi
+if [[ $mvn_version != $cached_mvn_version ]] ; then
+    rm -rf "$cache_dir/maven"
+    mkdir "$cache_dir/maven"
+    wget -q -O - "$mvn_url" | tar -xzf - -C "$cache_dir/maven" --strip-components=1
+    echo "version = \"$mvn_version\"" > "$cache_dir/maven.toml"
+fi
+
+# Make java, mvn etc. accessible in this script
+export PATH=$PATH:$cache_dir/java/bin:$cache_dir/maven/bin
+
+# Build function
+MAVEN_OPTS="${MAVEN_OPTS:-"-Xmx1024m -Duser.home=$cache_dir -Dmaven.repo.local=$cache_dir/.m2/repository"}"
+mvn -DskipTests -B -q package
+jar=$(ls target/*.jar)
+echo "Built $jar"
+
+# Add function invoker
+wget -q "$invoker_url" -O $launch_dir/java-function-invoker-${invoker_version}-exec.jar
+
+# Add function jar
+mkdir $launch_dir/function/
+cp $jar $launch_dir/function/.
+
+# Set default start command
+echo 'processes = [{ type = "web", command = "java -jar ./java-function-invoker-${invoker_version}-exec.jar --function_uri=file://\$PWD/function/$jar?handler=\${FUNCTION_HANDLER:-functions.Function}"}]' > "$launch_dir/launch.toml"
