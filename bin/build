@@ -21,14 +21,15 @@ if compgen -G "$env_dir/*" > /dev/null; then
     done
 fi
 
-echo "Downloading OpenJDK $jdk_version"
 # If it doesn't exist locally, create a JDK cache layer with
 # POSIX-style root for launch (bin, lib, etc).
 # This makes java available to subsequent buildpacks as well.
 if [[ -f $cache_dir/java.toml ]]; then
     cached_jdk_version=$(cat "$cache_dir/java.toml" | yj -t | jq -r .version)
+    echo "Found cached OpenJDK $cached_jdk_version"
 fi
 if [[ $jdk_version != $cached_jdk_version ]] ; then
+    echo "Downloading OpenJDK $jdk_version"
     rm -rf "$cache_dir/java"
     mkdir "$cache_dir/java"
     wget -q -O - "$jdk_url" | tar -xzf - -C "$cache_dir/java" --strip-components=1
@@ -46,14 +47,15 @@ if [[ $jdk_version != $launch_jdk_version ]] ; then
     cp "$cache_dir/java.toml" "$launch_dir/java.toml"
 fi
 
-echo "Downloading Apache Maven $mvn_version"
 # If it doesn't exist locally, create a Maven cache layer with
 # POSIX-style root for launch (bin, lib, etc).
 # This makes mvn available to subsequent buildpacks as well.
 if [[ -f $cache_dir/maven.toml ]]; then
     cached_mvn_version=$(cat "$cache_dir/maven.toml" | yj -t | jq -r .version)
+    echo "Found cached Apache Maven $cached_mvn_version"
 fi
 if [[ $mvn_version != $cached_mvn_version ]] ; then
+    echo "Downloading Apache Maven $mvn_version"
     rm -rf "$cache_dir/maven"
     mkdir "$cache_dir/maven"
     wget -q -O - "$mvn_url" | tar -xzf - -C "$cache_dir/maven" --strip-components=1
