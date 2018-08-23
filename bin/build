@@ -75,5 +75,5 @@ mkdir $launch_dir/function/
 cp $jar $launch_dir/function/.
 
 # Set default start command
-FUNCTION_HANDLER=upper #hardcode the handler for now
-echo "processes = [{ type = \"web\", command = \"java -jar ./java-function-invoker-${invoker_version}-exec.jar --function_uri=file://\$PWD/function/$jar?handler=\${FUNCTION_HANDLER:-functions.Function}\"}]" > "$launch_dir/launch.toml"
+FUNCTION_HANDLER=functions.Upper #hardcode the handler for now
+echo "processes = [{ type = \"web\", command = \"java -jar ./java-function-invoker-${invoker_version}-exec.jar --function.uri=file://\$PWD/function/$jar?handler=\${FUNCTION_HANDLER:-functions.Function}\"}]" > "$launch_dir/launch.toml"
