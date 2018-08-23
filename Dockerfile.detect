@@ -23,8 +23,8 @@ ENV PACK_DETECT_INFO_PATH ./detect.toml
 ENV PACK_STACK_NAME packs/v3
 ENV PACK_METADATA_PATH /launch/config/metadata.toml
 
-RUN echo 'groups = [{ repository = "trisberg/packsv3mvn", buildpacks = [{ id = "io.projectriff.riff.buildpack.mvn", version = "latest" }] }]' > /buildpacks/order.toml
-COPY . /buildpacks/io.projectriff.riff.buildpack.mvn/latest
+RUN echo 'groups = [{ repository = "projectriff/mvnfunv3", buildpacks = [{ id = "io.projectriff.riff.buildpack.mvn", version = "0.0.1" }] }]' > /buildpacks/order.toml
+COPY . /buildpacks/io.projectriff.riff.buildpack.mvn/0.0.1
 
 USER packs
 

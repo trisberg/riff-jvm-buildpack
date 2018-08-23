@@ -21,6 +21,7 @@ if compgen -G "$env_dir/*" > /dev/null; then
     done
 fi
 
+echo "Downloading OpenJDK $jdk_version"
 # If it doesn't exist locally, create a JDK cache layer with
 # POSIX-style root for launch (bin, lib, etc).
 # This makes java available to subsequent buildpacks as well.
@@ -45,6 +46,7 @@ if [[ $jdk_version != $launch_jdk_version ]] ; then
     cp "$cache_dir/java.toml" "$launch_dir/java.toml"
 fi
 
+echo "Downloading Apache Maven $mvn_version"
 # If it doesn't exist locally, create a Maven cache layer with
 # POSIX-style root for launch (bin, lib, etc).
 # This makes mvn available to subsequent buildpacks as well.
@@ -63,17 +65,20 @@ export PATH=$PATH:$cache_dir/java/bin:$cache_dir/maven/bin
 
 # Build function
 MAVEN_OPTS="${MAVEN_OPTS:-"-Xmx1024m -Duser.home=$cache_dir -Dmaven.repo.local=$cache_dir/.m2/repository"}"
-mvn -DskipTests -B -q package
+mvn -DskipTests -B -q clean package
 jar=$(ls target/*.jar)
 echo "Built $jar"
 
+echo "Adding Java invoker $invoker_version"
 # Add function invoker
-wget -q "$invoker_url" -O $launch_dir/java-function-invoker-${invoker_version}-exec.jar
+wget -q "$invoker_url" -O target/java-function-invoker-${invoker_version}-exec.jar
 
+echo "Adding function $jar"
 # Add function jar
 mkdir $launch_dir/function/
 cp $jar $launch_dir/function/.
 
 # Set default start command
-FUNCTION_HANDLER=functions.Upper #hardcode the handler for now
-echo "processes = [{ type = \"web\", command = \"java -jar ./java-function-invoker-${invoker_version}-exec.jar --function.uri=file://\$PWD/function/$jar?handler=\${FUNCTION_HANDLER:-functions.Function}\"}]" > "$launch_dir/launch.toml"
+FUNCTION_HANDLER=$(cat "riff.toml" | yj -t | jq -r .handler)
+echo "Setting function handler to $FUNCTION_HANDLER"
+echo "processes = [{ type = \"web\", command = \"java -jar target/java-function-invoker-${invoker_version}-exec.jar --function.uri=file://\$PWD/$jar?handler=${FUNCTION_HANDLER:-functions.Function}\"}]" > "$launch_dir/launch.toml"
