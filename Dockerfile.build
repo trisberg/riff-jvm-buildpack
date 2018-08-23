@@ -1,0 +1,3 @@
+FROM trisberg/packsv3mvn:detect
+
+ENTRYPOINT ["/packs/builder"]

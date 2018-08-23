@@ -1,0 +1,31 @@
+ARG go_version=1.10.3
+
+FROM golang:${go_version} as deps
+
+RUN go get github.com/sclevine/yj
+RUN wget -qO bin/jq http://stedolan.github.io/jq/download/linux64/jq
+RUN chmod +x bin/jq
+
+FROM packsdev/v3
+
+COPY --from=deps /go/bin /usr/local/bin
+RUN apt-get update && \
+  apt-get install -y wget xz-utils && \
+  rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /cache /launch/app /launch/config /platform/env /buildpacks
+RUN chown -R packs:packs /launch /cache
+
+ENV PACK_BP_PATH /buildpacks
+ENV PACK_BP_ORDER_PATH /buildpacks/order.toml
+ENV PACK_BP_GROUP_PATH ./group.toml
+ENV PACK_DETECT_INFO_PATH ./detect.toml
+ENV PACK_STACK_NAME packs/v3
+ENV PACK_METADATA_PATH /launch/config/metadata.toml
+
+RUN echo 'groups = [{ repository = "trisberg/packsv3mvn", buildpacks = [{ id = "io.projectriff.riff.buildpack.mvn", version = "latest" }] }]' > /buildpacks/order.toml
+COPY . /buildpacks/io.projectriff.riff.buildpack.mvn/latest
+
+USER packs
+
+ENTRYPOINT ["/packs/detector"]
