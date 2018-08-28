@@ -1,3 +1,3 @@
-FROM projectriff/mvnfunv3:detect
+FROM projectriff/jvmfunv3:detect
 
 ENTRYPOINT ["/packs/builder"]

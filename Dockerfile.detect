@@ -10,7 +10,7 @@ FROM packsdev/v3
 
 COPY --from=deps /go/bin /usr/local/bin
 RUN apt-get update && \
-  apt-get install -y wget xz-utils && \
+  apt-get install -y wget xz-utils unzip && \
   rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /cache /launch/app /launch/config /platform/env /buildpacks
@@ -23,8 +23,9 @@ ENV PACK_DETECT_INFO_PATH ./detect.toml
 ENV PACK_STACK_NAME packs/v3
 ENV PACK_METADATA_PATH /launch/config/metadata.toml
 
-RUN echo 'groups = [{ repository = "projectriff/mvnfunv3", buildpacks = [{ id = "io.projectriff.riff.buildpack.mvn", version = "0.0.1" }] }]' > /buildpacks/order.toml
-COPY . /buildpacks/io.projectriff.riff.buildpack.mvn/0.0.1
+RUN echo 'groups = [{ repository = "projectriff/jvmfunv3", buildpacks = [{ id = "io.projectriff.riff.buildpack.gradle", version = "0.0.1" }] }, { repository = "projectriff/jvmfunv3", buildpacks = [{ id = "io.projectriff.riff.buildpack.mvn", version = "0.0.1" }] }]' > /buildpacks/order.toml
+COPY gradle /buildpacks/io.projectriff.riff.buildpack.gradle/0.0.1
+COPY mvn /buildpacks/io.projectriff.riff.buildpack.mvn/0.0.1
 
 USER packs
 

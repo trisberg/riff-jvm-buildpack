@@ -1,0 +1,4 @@
+id = "io.projectriff.riff.buildpack.mvn"
+version = "0.0.1"
+name = "Experimental Java/Maven Buildpack for riff functions"
+stacks = ["packs/v3"]

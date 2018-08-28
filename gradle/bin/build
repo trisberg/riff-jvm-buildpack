@@ -9,8 +9,8 @@ launch_dir=$3
 # TODO: 
 jdk_version=1.8.0_131
 jdk_url=https://java-buildpack.cloudfoundry.org/openjdk/trusty/x86_64/openjdk-${jdk_version}.tar.gz
-mvn_version=3.5.4
-mvn_url=http://www-us.apache.org/dist/maven/maven-3/${mvn_version}/binaries/apache-maven-${mvn_version}-bin.tar.gz
+gradle_version=4.10
+gradle_url=https://services.gradle.org/distributions/gradle-${gradle_version}-bin.zip
 invoker_version=0.0.7
 invoker_url=http://repo.spring.io/libs-milestone-local/io/projectriff/java-function-invoker/${invoker_version}/java-function-invoker-${invoker_version}-exec.jar
 
@@ -47,40 +47,37 @@ if [[ $jdk_version != $launch_jdk_version ]] ; then
     cp "$cache_dir/java.toml" "$launch_dir/java.toml"
 fi
 
-# If it doesn't exist locally, create a Maven cache layer with
+# If it doesn't exist locally, create a Gradle cache layer with
 # POSIX-style root for launch (bin, lib, etc).
 # This makes mvn available to subsequent buildpacks as well.
-if [[ -f $cache_dir/maven.toml ]]; then
-    cached_mvn_version=$(cat "$cache_dir/maven.toml" | yj -t | jq -r .version)
-    echo "Found cached Apache Maven $cached_mvn_version"
+if [[ -f $cache_dir/gradle.toml ]]; then
+    cached_gradle_version=$(cat "$cache_dir/gradle.toml" | yj -t | jq -r .version)
+    echo "Found cached Gradle $cached_gradle_version"
 fi
-if [[ $mvn_version != $cached_mvn_version ]] ; then
-    echo "Downloading Apache Maven $mvn_version"
-    rm -rf "$cache_dir/maven"
-    mkdir "$cache_dir/maven"
-    wget -q -O - "$mvn_url" | tar -xzf - -C "$cache_dir/maven" --strip-components=1
-    echo "version = \"$mvn_version\"" > "$cache_dir/maven.toml"
+if [[ $gradle_version != $cached_gradle_version ]] ; then
+    echo "Downloading Gradle $gradle_version"
+    rm -rf "$cache_dir/gradle"
+    wget -q -O gradle.zip "$gradle_url"
+    unzip -q gradle.zip -d "$cache_dir"
+    mv "$cache_dir/gradle-${gradle_version}" "$cache_dir/gradle"
+    rm gradle.zip
+    echo "version = \"$gradle_version\"" > "$cache_dir/gradle.toml"
 fi
 
 # Make java, mvn etc. accessible in this script
-export PATH=$PATH:$cache_dir/java/bin:$cache_dir/maven/bin
+export PATH=$PATH:$cache_dir/java/bin:$cache_dir/gradle/bin
 
 # Build function
-MAVEN_OPTS="${MAVEN_OPTS:-"-Xmx1024m -Duser.home=$cache_dir -Dmaven.repo.local=$cache_dir/.m2/repository"}"
-mvn -DskipTests -B -q clean package
-jar=$(ls target/*.jar)
+gradle clean build --no-daemon -x test
+jar=$(ls build/libs/*.jar)
 echo "Built $jar"
 
 echo "Adding Java invoker $invoker_version"
 # Add function invoker
-wget -q "$invoker_url" -O target/java-function-invoker-${invoker_version}-exec.jar
+wget -q "$invoker_url" -O build/libs/java-function-invoker-${invoker_version}-exec.jar
 
 echo "Adding function $jar"
-# Add function jar
-mkdir $launch_dir/function/
-cp $jar $launch_dir/function/.
-
 # Set default start command
 FUNCTION_HANDLER=$(cat "riff.toml" | yj -t | jq -r .handler)
 echo "Setting function handler to $FUNCTION_HANDLER"
-echo "processes = [{ type = \"web\", command = \"java -jar target/java-function-invoker-${invoker_version}-exec.jar --function.uri=file://\$PWD/$jar?handler=${FUNCTION_HANDLER:-functions.Function} --riff.function.invoker.protocol=http\"}]" > "$launch_dir/launch.toml"
+echo "processes = [{ type = \"web\", command = \"java -jar build/libs/java-function-invoker-${invoker_version}-exec.jar --function.uri=file://\$PWD/$jar?handler=${FUNCTION_HANDLER:-functions.Function} --riff.function.invoker.protocol=http\"}]" > "$launch_dir/launch.toml"

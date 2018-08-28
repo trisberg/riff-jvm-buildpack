@@ -1,0 +1,4 @@
+id = "io.projectriff.riff.buildpack.gradle"
+version = "0.0.1"
+name = "Experimental Java/Gradle Buildpack for riff functions"
+stacks = ["packs/v3"]
