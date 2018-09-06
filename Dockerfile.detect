@@ -6,7 +6,7 @@ RUN go get github.com/sclevine/yj
 RUN wget -qO bin/jq http://stedolan.github.io/jq/download/linux64/jq
 RUN chmod +x bin/jq
 
-FROM packsdev/v3
+FROM packs/v3
 
 COPY --from=deps /go/bin /usr/local/bin
 RUN apt-get update && \
